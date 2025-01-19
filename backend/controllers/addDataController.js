@@ -1,5 +1,7 @@
 const axios = require('axios');
-
+const fs = require('fs');
+const os = require('os'); // For cross-platform temp directory
+const path = require('path'); // For path manipulation
 const API_BASE_URL = 'http://localhost:8000'; // Base URL for Akave API
 
 exports.addUserData = async (req, res) => {
@@ -44,8 +46,7 @@ exports.addUserData = async (req, res) => {
         } else {
           console.error("Failed to extract ID from bucket creation response");
           return res.status(500).json({
-            message: 'Failed to create a new bucket',
-            error: createBucketResponse?.data,
+            msg: createBucketResponse?.data,
           });
         }
       }
@@ -59,25 +60,89 @@ exports.addUserData = async (req, res) => {
 
     console.log("BucketId before adding data to the bucket:", bucketId);
 
+    // 1. Convert diseases data to a JSON string
+    const jsonData = JSON.stringify(diseases);
+    const jsonDataBuffer = Buffer.from(jsonData, 'utf-8');
+
+    // 2. Use system temp directory (cross-platform)
+    const tempDir = os.tmpdir(); // Get OS's temp directory
+    const tempFilePath = path.join(tempDir, 'diseases.json'); // Create a path for the temp file
+
+    // Ensure the directory exists
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Write the JSON data to a temporary file
+    fs.writeFileSync(tempFilePath, jsonDataBuffer);
+
     try {
-      const addDataResponse = await axios.post(
-        `${API_BASE_URL}/buckets/${bucketId}/data`, // Endpoint to add data to a bucket
-        { data: { diseases } }, // Payload with diseases data
+      // Step 1: Start the file upload process
+      const fileUploadCreateResponse = await axios.post(
+        `${API_BASE_URL}/files-upload-create`,
+        { bucketID: bucketId, fileName: 'diseases.json', size: jsonDataBuffer.length },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      const { streamId } = fileUploadCreateResponse.data;
+
+      console.log("File upload stream ID:", streamId);
+
+      // Step 2: Split data into chunks and upload
+      const CHUNK_SIZE = 32 * 1024 * 1024; // 32 MB chunk size
+      let start = 0;
+      let chunkIndex = 0;
+
+      while (start < jsonDataBuffer.length) {
+        const chunkData = jsonDataBuffer.slice(start, start + CHUNK_SIZE);
+        const chunkCID = `chunk-${chunkIndex}`; // Generate a chunk identifier
+
+        // Step 3: Upload chunk data
+        const fileUploadChunkCreateResponse = await axios.post(
+          `${API_BASE_URL}/files-upload-chunk-create`,
+          { streamId, chunkCID, size: chunkData.length },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        const { blocks } = fileUploadChunkCreateResponse.data;
+        console.log(`Chunk ${chunkIndex} prepared for upload`);
+
+        // Step 4: Upload each block of the chunk
+        for (let block of blocks) {
+          await axios.post(`${API_BASE_URL}/files-upload-block`, {
+            blockCID: block.cid,
+            blockData: chunkData.toString('base64'),
+          });
+          console.log(`Block ${block.cid} uploaded`);
+        }
+
+        // Update start position for the next chunk
+        start += CHUNK_SIZE;
+        chunkIndex++;
+      }
+
+      // Step 5: Commit the file upload once all chunks are uploaded
+      const fileUploadCommitResponse = await axios.post(
+        `${API_BASE_URL}/files-upload-commit`,
+        { streamId, rootCID: 'root-cid-placeholder' }, // Replace with actual root CID after calculating
         { headers: { 'Content-Type': 'application/json' } }
       );
 
-      console.log("Add Data Response:", addDataResponse?.data);
+      console.log("File upload committed:", fileUploadCommitResponse.data);
 
+      // Return success response
       return res.status(201).json({
         message: 'User data added successfully to the bucket!',
-        akaveData: addDataResponse.data,
+        akaveData: fileUploadCommitResponse.data,
       });
     } catch (error) {
-      console.error('Error adding data to the bucket:', error.response?.data || error.message);
+      console.error('Error uploading data to the bucket:', error.response?.data || error.message);
       return res.status(500).json({
-        message: 'Error adding data to the bucket',
+        message: 'Error uploading data to the bucket',
         error: error.response?.data || error.message,
       });
+    } finally {
+      // Clean up temporary file
+      fs.unlinkSync(tempFilePath);
     }
   } catch (error) {
     console.error('Unexpected error occurred:', error);
