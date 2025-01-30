@@ -6,11 +6,12 @@ const cors = require('cors');
 const ehrRoutes = require('./routes/ehrRoutes');
 const verifyRoutes = require('./routes/verifyRoutes');
 const reclaimRoutes = require('./routes/reclaimRoutes');
+const insuranceCompanyRoutes = require('./routes/insuranceCompanyRoutes');
 
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 5001;
+const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 app.use(morgan('dev'));
@@ -23,6 +24,7 @@ app.get('/', (req, res) => {
 app.use('/api/reclaim', reclaimRoutes);
 app.use('/api/data', ehrRoutes);
 app.use('/api/verify', verifyRoutes);
+app.use('/api/insurance', insuranceCompanyRoutes);
 
 mongoose.connect(process.env.MONGODB_URL, {
 //  useNewUrlParser: true,
