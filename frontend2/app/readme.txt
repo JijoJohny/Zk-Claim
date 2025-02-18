@@ -1,1 +1,0 @@
-front end pages updated
