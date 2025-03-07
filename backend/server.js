@@ -7,6 +7,8 @@ const ehrRoutes = require('./routes/ehrRoutes');
 const verifyRoutes = require('./routes/verifyRoutes');
 const reclaimRoutes = require('./routes/reclaimRoutes');
 const insuranceCompanyRoutes = require('./routes/insuranceCompanyRoutes');
+const insuranceRoutes = require("./routes/insuranceRoutes");
+const claimRoutes = require("./routes/claimRoutes");
 
 require('dotenv').config();
 
@@ -25,6 +27,8 @@ app.use('/api/reclaim', reclaimRoutes);
 app.use('/api/data', ehrRoutes);
 app.use('/api/verify', verifyRoutes);
 app.use('/api/insurance', insuranceCompanyRoutes);
+app.use("/api/insurance", insuranceRoutes);
+app.use("/api/claims", claimRoutes);
 
 mongoose.connect(process.env.MONGODB_URL, {
 //  useNewUrlParser: true,
