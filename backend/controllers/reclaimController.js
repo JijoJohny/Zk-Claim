@@ -16,7 +16,7 @@ exports.receiveEHR = async (req, res) => {
     }
 
     // 1. Verify if the insurance company is registered
-    const insuranceCompany = await InsuranceCompany.findOne({ _id: insuranceCompanyId });
+    const insuranceCompany = await InsuranceCompany.findOne({ companyId: insuranceCompanyId });
 
     if (!insuranceCompany) {
       return res.status(403).json({ success: false, message: "Invalid insurance company ID." });
