@@ -28,7 +28,7 @@ exports.addUserData = async (req, res) => {
       const existingBucket = buckets.find(bucket => bucket.Name === did);
 
       if (existingBucket) {
-        bucketId = existingBucket.ID;
+        bucketId = existingBucket.Name;
         console.log(`Bucket already exists with ID: ${bucketId}`);
       } else {
         console.log('No existing bucket found, creating a new one...');
@@ -41,8 +41,8 @@ exports.addUserData = async (req, res) => {
 
         console.log("Response from createBucketResponse:", createBucketResponse?.data);
 
-        if (createBucketResponse?.data?.data?.ID) {
-          bucketId = createBucketResponse.data.data.ID;
+        if (createBucketResponse) {
+          bucketId = createBucketResponse.data.Name;
           console.log(`Bucket created with ID: ${bucketId}`);
         } else {
           console.error("Failed to extract ID from bucket creation response");
@@ -60,10 +60,12 @@ exports.addUserData = async (req, res) => {
       });
     }
 
-    console.log("BucketId before adding data to the bucket:", bucketId);
+    const fileName = `output_${Date.now()}.json`;
+    const filePath = path.join(__dirname, 'files', fileName);
+    
 
     // Generate the JSON file
-    const filePath = path.join(__dirname, 'files', 'output.json');
+    //const filePath = path.join(__dirname, 'files', 'output.json');
 
     try {
       const jsonData = {
@@ -98,6 +100,7 @@ exports.addUserData = async (req, res) => {
 
       const form = new FormData();
       form.append('file', fs.createReadStream(filePath));
+      console.log(form);
 
       try {
         const response = await axios.post(`${API_BASE_URL}/buckets/${did}/files`, form, {
@@ -113,6 +116,7 @@ exports.addUserData = async (req, res) => {
 
     try {
       await uploadFile(did, filePath);
+
       return res.status(200).json({
         message: 'File uploaded successfully to the bucket.',
       });
