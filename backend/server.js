@@ -21,6 +21,7 @@ const proofRequestRoutes = require("./routes/proofRequestRoutes");
 const patientRoutes = require("./routes/patientRoutes.js");
 const generateProofRoutes = require("./routes/generateProofRoutes.js");
 const verifyProofRoutes = require('./routes/verifyProofRoutes');
+const userRoutes = require("./routes/userRoutes");
 dotenv.config();
 
 const app = express();
@@ -49,7 +50,7 @@ app.use("/api/plans", iplanRoutes); //insurance plans
 app.use('/api/patients',patientRoutes);//to list all patients
 app.use("/api/db", dbRoutes); //db management
 app.use("/api/retrieve", retrieveRoutes);//akave file content retrieval
-
+app.use("/api", userRoutes);//fetch data
 app.use('/api/reclaim', reclaimRoutes);//proof generation(old)
 app.use('/api/verify', verifyRoutes);//proof verification(old)
 
