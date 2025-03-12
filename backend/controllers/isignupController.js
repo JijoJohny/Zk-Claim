@@ -1,5 +1,5 @@
 const InsuranceCompany = require("../models/InsuranceCompany");
-const bcrypt = require("bcryptjs");
+//const bcrypt = require("bcryptjs");
 
 exports.signup = async (req, res) => {
   try {
