@@ -1,11 +1,12 @@
 const express = require("express");
-const router = express.Router();
-const insuranceController = require("../controllers/insuranceregController");
+const { purchaseInsurance, getAllInsurances, getPatientInsurances, deleteInsurance } = require("../controllers/insuranceController");
 
-// Routes
-router.post("/", insuranceController.createInsurance);
-router.get("/", insuranceController.getAllInsurance);
-router.get("/:did", insuranceController.getInsuranceByDID);
-router.put("/update-did-verified/:did", insuranceController.updateDidVerified);
+const router = express.Router();
+
+router.post("/purchase", purchaseInsurance);  // Purchase insurance
+router.get("/", getAllInsurances);           // Get all insurance records
+router.get("/:did", getPatientInsurances);   // Get insurance by patient DID
+router.delete("/:id", deleteInsurance);      // Delete insurance by ID
 
 module.exports = router;
+
