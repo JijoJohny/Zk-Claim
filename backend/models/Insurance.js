@@ -1,16 +1,16 @@
 const mongoose = require("mongoose");
 
 const InsuranceSchema = new mongoose.Schema({
-    did: { type: String, required: true, unique: true }, // Decentralized Identifier
-    ageGroup: { type: String, required: true }, // Example: "18-25", "26-40"
-    insurancePlan: { type: String, required: true }, // Example: "Basic", "Premium"
-    sumInsured: { type: String, required: true }, // Example: "$10,000 - $50,000"
-    coveragePeriod: { type: String, required: true }, // Example: "1 year", "5 years"
-    paymentMethod: { type: String, required: true }, // Example: "Credit Card", "Crypto"
-    did_verified: {
-        type: Boolean,
-        default: false
-    },
-}, { timestamps: true });
+    did: { type: String, required: true, ref: "Patient" }, // Reference to Patient's DID
+    planId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: "InsurancePlan" }, // Reference to the Plan
+    plan: { type: String, required: true }, // Plan Name
+    provider: { type: String, required: true }, // Provider Name
+    purchaseDate: { type: Date, default: Date.now }, // Purchase timestamp
+    claim: { 
+        type: String, 
+        enum: ["no", "pending", "approved", "rejected"], 
+        default: "no" 
+    } // Claim status with predefined values
+});
 
 module.exports = mongoose.model("Insurance", InsuranceSchema);

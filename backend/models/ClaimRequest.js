@@ -1,28 +1,41 @@
 const mongoose = require("mongoose");
 
-const ClaimRequestSchema = new mongoose.Schema({
+const ClaimRequestsSchema = new mongoose.Schema({
     did: {
         type: String,
         required: true,
-        ref: "Insurance"  // Foreign key reference
+        ref: "Insurance"  // Foreign key reference to Insurance
     },
-    hospitalName: { type: String, required: true },
-    diagnosis: { type: String, required: true },
-    claimAmount: { type: Number, required: true },
+    insuranceId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Insurance",
+        required: true
+    },
+    hospitalName: { 
+        type: String, 
+        required: true 
+    },
+    claimDisease: {  // Updated field name
+        type: String, 
+        required: true 
+    },
+    claimAmount: { 
+        type: Number, 
+        required: true 
+    },
     claimStatus: {
         type: String,
         enum: ["Pending", "Approved", "Rejected"],
         default: "Pending"
     },
-    approved: {
-        type: Boolean,
-        default: false
+    response: { 
+        type: String,
+        default: ""
     },
-    proof_recieved: {
-        type: Boolean,
-        default: false
-    },
-    claimDate: { type: Date, default: Date.now }
+    claimDate: { 
+        type: Date, 
+        default: Date.now 
+    }
 }, { timestamps: true });
 
-module.exports = mongoose.model("ClaimRequest", ClaimRequestSchema);
+module.exports = mongoose.model("ClaimRequests", ClaimRequestsSchema);

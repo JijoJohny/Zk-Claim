@@ -1,73 +1,107 @@
 const axios = require('axios');
 const { generateProof } = require('../services/zkProofService');
-const InsuranceCompany = require('../models/InsuranceCompany'); // Model for insurance companies
 
 const AKAVE_API_BASE_URL = 'http://localhost:8000';
 
 exports.receiveEHR = async (req, res) => {
   try {
     const { did } = req.params;
-    const { claimDisease, insuranceCompanyId } = req.body;
+    const { claimDisease } = req.body;
 
-    console.log(`DID: ${did}, Claim Disease: ${claimDisease}, Insurance Company ID: ${insuranceCompanyId}`);
+    console.log("DID:", did, "Claim Disease:", claimDisease);
 
-    if (!did || !claimDisease || !insuranceCompanyId) {
-      return res.status(400).json({ success: false, message: "'did', 'claimDisease', and 'insuranceCompanyId' are required." });
+    if (!did || !claimDisease) {
+      return res.status(400).json({ success: false, message: "'did' and 'claimDisease' are required." });
     }
 
-    // 1. Verify if the insurance company is registered
-    const insuranceCompany = await InsuranceCompany.findOne({ companyId: insuranceCompanyId });
-
-    if (!insuranceCompany) {
-      return res.status(403).json({ success: false, message: "Invalid insurance company ID." });
-    }
-
-    // 2. Function to download and process EHR file from Akave
-    const downloadAndProcess = async (bucketName, fileName) => {
+    // Function to download and process a single file
+    const downloadAndProcessFile = async (bucketName, fileName) => {
       try {
+        console.log(`Attempting to download file: ${fileName}`);
         const response = await axios.get(`${AKAVE_API_BASE_URL}/buckets/${bucketName}/files/${fileName}/download`, {
           responseType: 'arraybuffer',
         });
-        console.log(`File downloaded: ${fileName}`);
 
+        console.log(`File successfully downloaded: ${fileName}`);
         const fileContent = Buffer.from(response.data, 'binary').toString('utf8');
-        return JSON.parse(fileContent);
+        const jsonData = JSON.parse(fileContent);
+
+        console.log(`Parsed JSON for file ${fileName}:`, jsonData);
+        return jsonData;
       } catch (error) {
-        console.error('Error downloading the file:', error.response?.data || error.message);
-        throw error;
+        console.error(`Error downloading file ${fileName}:`, error.response?.data || error.message);
+        return null;
       }
     };
 
-    let diseases;
+    // Step 1: Get all files in the DID bucket
+    let filesList;
     try {
-      const bucketDataResponse = await downloadAndProcess(did, 'output.json');
-      diseases = bucketDataResponse.diseases || [];
-      console.log('Diseases:', diseases);
+      console.log(`Fetching file list for bucket: ${did}`);
+      const listResponse = await axios.get(`${AKAVE_API_BASE_URL}/buckets/${did}/files`);
+      filesList = listResponse.data.data || [];
+
+      console.log("Files found in bucket:", filesList.map(f => f.Name));
     } catch (error) {
-      return res.status(404).json({
+      console.error('Error retrieving file list from Akave:', error.response?.data || error.message);
+      return res.status(500).json({
         success: false,
-        message: 'Patient data not found in Akave.',
+        message: 'Error retrieving file list from Akave',
         error: error.response?.data || error.message,
       });
     }
 
-    // 4. Check if claimed disease is in the patient's EHR
-    const diseaseToClaim = diseases.find(disease => disease.disease_name && disease.disease_name.toLowerCase() === claimDisease.toLowerCase());
-    let conditionCode = diseaseToClaim ? 1 : 0;
+    if (filesList.length === 0) {
+      console.log("No files found in bucket!");
+      return res.status(404).json({ success: false, message: "No files found in Akave for this DID" });
+    }
 
-    // 5. Generate proof
-    const inputData = { did, conditionCode };
+    // Step 2: Process each file in the bucket
+    let allDiseases = [];
+    for (const file of filesList) {
+      const fileName = file.Name;
+      console.log(`Processing file: ${fileName}`);
+
+      const jsonData = await downloadAndProcessFile(did, fileName);
+      if (jsonData) {
+        console.log(`File ${fileName} contains diseases field?`, jsonData.hasOwnProperty('diseases'));
+
+        if (jsonData.diseases && Array.isArray(jsonData.diseases)) {
+          allDiseases = allDiseases.concat(jsonData.diseases);
+        } else {
+          console.log(`Skipping file ${fileName} as it doesn't contain a valid diseases field.`);
+        }
+      }
+    }
+
+    console.log("Aggregated Diseases List:", allDiseases);
+
+    // Step 3: Check for the claimed disease
+    const diseaseToClaim = allDiseases.find(disease =>
+      disease.disease_name && disease.disease_name.toLowerCase() === claimDisease.toLowerCase()
+    );
+
+    let conditionCode = 0;
+    if (diseaseToClaim) {
+      conditionCode = 1;
+    }
+
+    console.log("Final Condition Code:", conditionCode);
+
+    const inputData = {
+      did,
+      conditionCode,
+    };
+
     console.log('Input data for proof generation:', inputData);
 
+    // Step 4: Generate the proof
     const proof = await generateProof(inputData);
 
-    // 6. Respond with proof
     res.setHeader('Accept', '*/*');
     return res.status(200).json({ success: true, proof });
-
   } catch (error) {
     console.error('Error processing EHR or generating proof:', error);
     res.status(500).json({ success: false, message: 'Error processing data', error: error.message });
   }
 };
-
