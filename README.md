@@ -86,7 +86,7 @@ This project is a decentralized insurance claim system that uses zk-SNARKs, Lit 
 - **Anjana KJ** 
 - **Jijo Johny**
 - **Anson Antony**
-- **
+- **Reja Muwahhida**
 
 ---
 
@@ -99,4 +99,5 @@ This project is licensed under the MIT License.
 - Special thanks to **Polygon** for their zkEVM and developer support.
 - **Lit Protocol** team for their guidance on automation and integration.
 - **Akave** for secure data storage solutions.
+
 
