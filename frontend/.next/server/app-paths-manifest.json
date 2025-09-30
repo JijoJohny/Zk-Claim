@@ -1,5 +1,9 @@
 {
-  "/page": "app/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/landing/page": "app/landing/page.js"
+  "/dashboard/insurance/users/page": "app/dashboard/insurance/users/page.js",
+  "/dashboard/insurance/users/[did]/page": "app/dashboard/insurance/users/[did]/page.js",
+  "/dashboard/hospital/notifications/page": "app/dashboard/hospital/notifications/page.js",
+  "/dashboard/patient/purchased/page": "app/dashboard/patient/purchased/page.js",
+  "/dashboard/patient/claimInsurance/page": "app/dashboard/patient/claimInsurance/page.js",
+  "/dashboard/patient/page": "app/dashboard/patient/page.js"
 }

@@ -1,5 +1,5 @@
-# Automated Insurance Claim System using Lit Protocol
-
+# PRIVACY-PRESERVING INSURANCE VERIFICATION SYSTEM USING ZERO-KNOWLEDGE PROOFS
+#
 ## Overview
 This project is a decentralized insurance claim system that uses zk-SNARKs, Lit Protocol, and blockchain technology to automate the verification and claim distribution process. By combining zero-knowledge proofs, secure identity verification, and decentralized automation, we streamline the process for users to claim insurance benefits efficiently and securely.
 
@@ -86,6 +86,7 @@ This project is a decentralized insurance claim system that uses zk-SNARKs, Lit 
 - **Anjana KJ** 
 - **Jijo Johny**
 - **Anson Antony**
+- **Reja Muwahhida**
 
 ---
 
@@ -98,4 +99,5 @@ This project is licensed under the MIT License.
 - Special thanks to **Polygon** for their zkEVM and developer support.
 - **Lit Protocol** team for their guidance on automation and integration.
 - **Akave** for secure data storage solutions.
+
 

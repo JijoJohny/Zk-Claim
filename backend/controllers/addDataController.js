@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const os = require('os'); // For cross-platform temp directory
 const path = require('path'); // For path manipulation
+
 const API_BASE_URL = 'http://localhost:8000'; // Base URL for Akave API
 
 exports.addUserData = async (req, res) => {
@@ -27,7 +28,7 @@ exports.addUserData = async (req, res) => {
       const existingBucket = buckets.find(bucket => bucket.Name === did);
 
       if (existingBucket) {
-        bucketId = existingBucket.ID;
+        bucketId = existingBucket.Name;
         console.log(`Bucket already exists with ID: ${bucketId}`);
       } else {
         console.log('No existing bucket found, creating a new one...');
@@ -40,8 +41,8 @@ exports.addUserData = async (req, res) => {
 
         console.log("Response from createBucketResponse:", createBucketResponse?.data);
 
-        if (createBucketResponse?.data?.ID) {
-          bucketId = createBucketResponse.data.ID;
+        if (createBucketResponse) {
+          bucketId = createBucketResponse.data.Name;
           console.log(`Bucket created with ID: ${bucketId}`);
         } else {
           console.error("Failed to extract ID from bucket creation response");
@@ -58,7 +59,12 @@ exports.addUserData = async (req, res) => {
       });
     }
 
-    console.log("BucketId before adding data to the bucket:", bucketId);
+    const fileName = `output_${Date.now()}.json`;
+    const filePath = path.join(__dirname, 'files', fileName);
+    
+
+    // Generate the JSON file
+    //const filePath = path.join(__dirname, 'files', 'output.json');
 
     // 1. Convert diseases data to a JSON string
     const jsonData = JSON.stringify(diseases);

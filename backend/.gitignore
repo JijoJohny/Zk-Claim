@@ -48,3 +48,5 @@ temp/
 # package-lock.json
 # yarn.lock
 /node_modules/
+package.json
+/package-lock.json
