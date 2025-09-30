@@ -1,7 +1,7 @@
 const axios = require('axios');
-const FormData = require('form-data');
 const fs = require('fs');
-const path = require('path');
+const os = require('os'); // For cross-platform temp directory
+const path = require('path'); // For path manipulation
 
 const API_BASE_URL = 'http://localhost:8000'; // Base URL for Akave API
 
@@ -47,8 +47,7 @@ exports.addUserData = async (req, res) => {
         } else {
           console.error("Failed to extract ID from bucket creation response");
           return res.status(500).json({
-            message: 'Failed to create a new bucket',
-            error: createBucketResponse?.data,
+            msg: createBucketResponse?.data,
           });
         }
       }
@@ -67,64 +66,89 @@ exports.addUserData = async (req, res) => {
     // Generate the JSON file
     //const filePath = path.join(__dirname, 'files', 'output.json');
 
-    try {
-      const jsonData = {
-        did,
-        diseases,
-        timestamp: new Date().toISOString(),
-      };
+    // 1. Convert diseases data to a JSON string
+    const jsonData = JSON.stringify(diseases);
+    const jsonDataBuffer = Buffer.from(jsonData, 'utf-8');
 
-      // Ensure the directory exists
-      const dir = path.dirname(filePath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+    // 2. Use system temp directory (cross-platform)
+    const tempDir = os.tmpdir(); // Get OS's temp directory
+    const tempFilePath = path.join(tempDir, 'diseases.json'); // Create a path for the temp file
 
-      // Write JSON data to the file
-      fs.writeFileSync(filePath, JSON.stringify(jsonData, null, 2));
-      console.log('JSON file created successfully:', filePath);
-    } catch (fileError) {
-      console.error('Error creating JSON file:', fileError.message);
-      return res.status(500).json({
-        message: 'Error creating JSON file',
-        error: fileError.message,
-      });
+    // Ensure the directory exists
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    // Upload the file
-    async function uploadFile(did, filePath) {
-      if (!fs.existsSync(filePath)) {
-        console.error(`File not found: ${filePath}`);
-        throw new Error('File not found');
-      }
-
-      const form = new FormData();
-      form.append('file', fs.createReadStream(filePath));
-      console.log(form);
-
-      try {
-        const response = await axios.post(`${API_BASE_URL}/buckets/${did}/files`, form, {
-          headers: form.getHeaders(),
-        });
-        console.log('File uploaded successfully:', response.data);
-        return response.data;
-      } catch (error) {
-        console.error('Failed to upload file:', error.response?.data || error.message);
-        throw error;
-      }
-    }
+    // Write the JSON data to a temporary file
+    fs.writeFileSync(tempFilePath, jsonDataBuffer);
 
     try {
-      await uploadFile(did, filePath);
+      // Step 1: Start the file upload process
+      const fileUploadCreateResponse = await axios.post(
+        `${API_BASE_URL}/files-upload-create`,
+        { bucketID: bucketId, fileName: 'diseases.json', size: jsonDataBuffer.length },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      const { streamId } = fileUploadCreateResponse.data;
 
-      return res.status(200).json({
-        message: 'File uploaded successfully to the bucket.',
+      console.log("File upload stream ID:", streamId);
+
+      // Step 2: Split data into chunks and upload
+      const CHUNK_SIZE = 32 * 1024 * 1024; // 32 MB chunk size
+      let start = 0;
+      let chunkIndex = 0;
+
+      while (start < jsonDataBuffer.length) {
+        const chunkData = jsonDataBuffer.slice(start, start + CHUNK_SIZE);
+        const chunkCID = `chunk-${chunkIndex}`; // Generate a chunk identifier
+
+        // Step 3: Upload chunk data
+        const fileUploadChunkCreateResponse = await axios.post(
+          `${API_BASE_URL}/files-upload-chunk-create`,
+          { streamId, chunkCID, size: chunkData.length },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        const { blocks } = fileUploadChunkCreateResponse.data;
+        console.log(`Chunk ${chunkIndex} prepared for upload`);
+
+        // Step 4: Upload each block of the chunk
+        for (let block of blocks) {
+          await axios.post(`${API_BASE_URL}/files-upload-block`, {
+            blockCID: block.cid,
+            blockData: chunkData.toString('base64'),
+          });
+          console.log(`Block ${block.cid} uploaded`);
+        }
+
+        // Update start position for the next chunk
+        start += CHUNK_SIZE;
+        chunkIndex++;
+      }
+
+      // Step 5: Commit the file upload once all chunks are uploaded
+      const fileUploadCommitResponse = await axios.post(
+        `${API_BASE_URL}/files-upload-commit`,
+        { streamId, rootCID: 'root-cid-placeholder' }, // Replace with actual root CID after calculating
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      console.log("File upload committed:", fileUploadCommitResponse.data);
+
+      // Return success response
+      return res.status(201).json({
+        message: 'User data added successfully to the bucket!',
+        akaveData: fileUploadCommitResponse.data,
       });
-    } catch (uploadError) {
+    } catch (error) {
+      console.error('Error uploading data to the bucket:', error.response?.data || error.message);
       return res.status(500).json({
-        message: 'File upload failed',
-        error: uploadError.message,
+        message: 'Error uploading data to the bucket',
+        error: error.response?.data || error.message,
       });
+    } finally {
+      // Clean up temporary file
+      fs.unlinkSync(tempFilePath);
     }
   } catch (error) {
     console.error('Unexpected error occurred:', error);
